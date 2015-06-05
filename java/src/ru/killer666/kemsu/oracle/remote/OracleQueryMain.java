@@ -123,8 +123,9 @@ public class OracleQueryMain
 
 				data.fields.add(new JsonPrimitive("Result"));
 				result.add(new JsonPrimitive(data.queryEx == null ? "Unknown error" : (data.queryEx
-						.getLocalizedMessage().contains("no statement parsed") ? "Success. No result" : data.queryEx.getClass()
-						.getName() + ": " + data.queryEx.getLocalizedMessage())));
+						.getLocalizedMessage().contains("no statement parsed")
+						|| data.queryEx.getLocalizedMessage().contains("invalid SQL statement") ? "Success. No result"
+						: data.queryEx.getClass().getName() + ": " + data.queryEx.getLocalizedMessage())));
 				data.data.add(result);
 			}
 

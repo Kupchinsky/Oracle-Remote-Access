@@ -95,13 +95,10 @@
 			header('Location: ' . $_SERVER['PHP_SELF']);
 			die;
 		}
-		elseif (isset($_POST['query']))
+		elseif (isset($_POST['query']) || isset($_POST['sqlscript']))
 		{
 			if (!isset($_SESSION['login']))
 				die('Hacking attempt!');
-
-			$_POST['query'] = trim($_POST['query']);
-			$_SESSION['lastquery'] = $_POST['query'];
 
 			function my_exec($cmd, $input = '')
 			{
@@ -125,6 +122,21 @@
 			{
 				return $needle === "" || strrpos($haystack, $needle, -strlen($haystack)) !== FALSE;
 			}
+
+			if (isset($_POST['sqlscript']))
+			{
+				if (!isset($_FILES['sqlfile']) || !is_uploaded_file($_FILES['sqlfile']['tmp_name']))
+					die('Upload failed! Retry again!');
+
+				if (strtolower(pathinfo(basename($_FILES['sqlfile']['name']), PATHINFO_EXTENSION)) != 'sql')
+					die('Upload file must ends with .sql!');
+
+				$_POST['query'] = file_get_contents($_FILES['sqlfile']['tmp_name']);
+				unlink($_FILES['sqlfile']['tmp_name']);
+			}
+
+			$_POST['query'] = trim($_POST['query']);
+			$_SESSION['lastquery'] = $_POST['query'];
 
 			$queries = explode(';', $_POST['query']);
 
@@ -213,7 +225,12 @@
 				Запрос (<strong>мультизапросы: разделитель - точка с запятой</strong>): <br>
 				<textarea id="query" name="query" rows="10" cols="100">' . (isset($_SESSION['lastquery']) ? htmlspecialchars($_SESSION['lastquery'], ENT_QUOTES) : '') . '</textarea><br>
 				<div style="padding-top: 10px"></div>
-				<input type="submit" value="Выполнить"> Logged as stud' . $_SESSION['login'] . ' <input type="submit" name="logout" value="Выход">
+				<input type="submit" value="Выполнить запрос(ы) из поля"> Logged as stud' . $_SESSION['login'] . ' <input type="submit" name="logout" value="Выход">
+			</form>
+			<form method="POST" enctype="multipart/form-data" action="' . $_SERVER['PHP_SELF'] . '" style="margin-top: 10px">
+				<input type="hidden" name="MAX_FILE_SIZE" value="30000">
+				<input name="sqlfile" type="file">
+				<input type="submit" name="sqlscript" value="Выполнить скрипт">
 			</form>
 			<div id="vk_like" style="margin-top: 120px"></div>
 			<div id="vk_comments" style="margin-top: 10px"></div>
