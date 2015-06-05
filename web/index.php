@@ -1,4 +1,5 @@
 <?
+	//die('Закрыто!');
 	require_once dirname(__FILE__) . '/app.php';
 
 	session_save_path(dirname(__FILE__) . '/sessions');
@@ -24,7 +25,7 @@
 		curl_setopt_array($ch, $options);
 		$data = curl_exec($ch);
 
-		//echo $data;
+		echo $data;
 
 		curl_close($ch);
 
@@ -99,9 +100,8 @@
 			if (!isset($_SESSION['login']))
 				die('Hacking attempt!');
 
+			$_POST['query'] = trim($_POST['query']);
 			$_SESSION['lastquery'] = $_POST['query'];
-
-			error_log('[' . date('d.m.y H:i:s') . ', ' . $_SESSION['vkname'] . ', ' . $_SESSION['vkid'] . '] ' . $_POST['query'] . PHP_EOL, 3, dirname(__FILE__) . '/queries.log');
 
 			function my_exec($cmd, $input = '')
 			{
@@ -121,7 +121,32 @@
 				return array('stdout' => $stdout, 'stderr' => $stderr, 'return' => $rtn);
 			}
 
-			$return = my_exec('java -jar ' . escapeshellarg(dirname(__FILE__) . '/app.jar') . ' ' . escapeshellarg($_SESSION['login']), json_encode($_POST['query']));
+			function startsWith($haystack, $needle)
+			{
+				return $needle === "" || strrpos($haystack, $needle, -strlen($haystack)) !== FALSE;
+			}
+
+			$queries = explode(';', $_POST['query']);
+
+			foreach ($queries as $key1 => &$query)
+			{
+				$lines = explode(PHP_EOL, $query);
+
+				foreach ($lines as $key => &$line)
+				{
+					if (startsWith(trim($line), '--'))
+						unset($lines[$key]);
+				}
+
+				$query = trim(implode(PHP_EOL, $lines));
+
+				if (strlen($query) == 0)
+					unset($queries[$key1]);
+			}
+
+			error_log('[' . date('d.m.y H:i:s') . ', ' . $_SESSION['vkname'] . ', ' . $_SESSION['vkid'] . '] ' . print_r($queries, true) . PHP_EOL, 3, dirname(__FILE__) . '/queries.log');
+
+			$return = my_exec('java -jar ' . escapeshellarg(dirname(__FILE__) . '/app.jar') . ' ' . escapeshellarg($_SESSION['login']), json_encode($queries));
 
 			if ($return['return'] != 0)
 			{
@@ -138,36 +163,42 @@
 			}
 			else
 			{
-				$data = json_decode($return['stdout'], true);
+				$alldata = json_decode($return['stdout'], true);
 
-				$thead = '';
-				foreach($data['fields'] as $field)
+				foreach ($alldata as &$data)
 				{
-					$thead .= '<th>' . htmlspecialchars(iconv('windows-1251', 'utf-8', $field)) . '</th>';
-				}
-
-				$tbody = '';
-				foreach($data['data'] as $dataField)
-				{
-					$tbody .= '<tr>';
-
-					foreach($dataField as $value)
+					$thead = '';
+					foreach($data['fields'] as $field)
 					{
-						$vvv = htmlspecialchars(iconv('windows-1251', 'utf-8', $value));
-						$tbody .= '<td>' . $vvv . (isset($_GET['mark_tbls']) ? ' [<a href="javascript:void(0);" onclick="pasteQuery1(\'' . $vvv . '\');">структура</a>]' : '') . '</td>';
+						$thead .= '<th>' . htmlspecialchars(iconv('windows-1251', 'utf-8', $field)) . '</th>';
 					}
 
-					$tbody .= '</tr>';
-				}
+					$tbody = '';
+					foreach($data['data'] as $dataField)
+					{
+						$tbody .= '<tr>';
 
-				$content .= 'Запрос выполнен:<br>
-					<h4><table>
-					<thead>' . $thead . '
-					</thead>
-					<tbody>' . $tbody . '
-					</tbody>
-					</table></h4><br><br>
-				';
+						foreach($dataField as $value)
+						{
+							$vvv = htmlspecialchars(iconv('windows-1251', 'utf-8', $value));
+							$tbody .= '<td>' . $vvv . (isset($_GET['mark_tbls']) ? ' [<a href="javascript:void(0);" onclick="pasteQuery1(\'' . $vvv . '\');">структура</a>]' : '') . '</td>';
+						}
+
+						$tbody .= '</tr>';
+					}
+
+					if ($_SESSION['vkid'] == '157756516')
+						$content = '<img src="./trollface-dancing.gif" alt="" style="width: 400px; height: 400px"><br><br>';
+
+					$content .= 'Запрос "' . htmlspecialchars(iconv('windows-1251', 'utf-8', $data['query'])) . '" выполнен:<br>
+						<h4><table>
+						<thead>' . $thead . '
+						</thead>
+						<tbody>' . $tbody . '
+						</tbody>
+						</table></h4><hr><br>
+					';
+				}
 			}
 		}
 
@@ -179,13 +210,13 @@
 				<br>
 			</h4>
 			<form method="POST" action="' . $_SERVER['PHP_SELF'] . '">
-				Запрос (точку с запятой в конце не ставить!): <br>
+				Запрос (<strong>мультизапросы: разделитель - точка с запятой</strong>): <br>
 				<textarea id="query" name="query" rows="10" cols="100">' . (isset($_SESSION['lastquery']) ? htmlspecialchars($_SESSION['lastquery'], ENT_QUOTES) : '') . '</textarea><br>
 				<div style="padding-top: 10px"></div>
 				<input type="submit" value="Выполнить"> Logged as stud' . $_SESSION['login'] . ' <input type="submit" name="logout" value="Выход">
 			</form>
-			<div id="vk_like" style="padding-top: 20px"></div>
-			<div id="vk_comments" style="padding-top: 10px"></div>
+			<div id="vk_like" style="margin-top: 120px"></div>
+			<div id="vk_comments" style="margin-top: 10px"></div>
 			<script type="text/javascript">
 				VK.Widgets.Comments("vk_comments", {limit: 5, width: "550", attach: "*"});
 				VK.Widgets.Like("vk_like", {type: "button"});
@@ -266,8 +297,6 @@
 	</script>
 </head>
 <body>
-	<h3>
-		<?= $content; ?>
-	</h3>
+	<?= $content; ?>
 </body>
 </html>
