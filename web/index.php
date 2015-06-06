@@ -299,7 +299,7 @@
 			if (table_name.length != 0)
 			{
 				$('#query').html("SELECT RPAD(COLUMN_NAME,30) || ': ' || DATA_TYPE || '(' || DATA_LENGTH || ')' as descr FROM all_tab_cols WHERE TABLE_NAME = UPPER('" + table_name + "')");
-				$('form').submit();
+				$('form:eq(0)').submit();
 			}
 		}
 
@@ -309,7 +309,7 @@
 				return;
 
 			$('#query').html('SELECT table_name FROM user_tables');
-			$('form').attr('action', $('form').attr('action') + '?mark_tbls').submit();
+			$('form:eq(0)').attr('action', $('form:eq(0)').attr('action') + '?mark_tbls').submit();
 		}
 	</script>
 </head>
